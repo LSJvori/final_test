@@ -314,7 +314,7 @@ export default {
       "</message>",
     ].join("\n");
 
-    const model = normalizeText(process.env.GEMINI_MODEL, 80) || "gemini-3.5-flash";
+    const model = normalizeText(process.env.GEMINI_MODEL, 80) || "gemini-3.5-flash-lite";
     try {
       const geminiResponse = await fetchGeminiWithRetry(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
