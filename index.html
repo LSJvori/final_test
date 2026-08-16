@@ -156,7 +156,7 @@
 <body>
   <header class="shell">
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span>보내도 돼?</div>
-    <div class="privacy">🔒 원문과 개인정보를 저장하지 않아요.</div>
+    <div class="privacy">🔒 서비스 DB에 원문을 저장하지 않아요.</div>
   </header>
 
   <main class="shell">
@@ -193,7 +193,7 @@
 
       <div class="step">
         <div class="step-head"><span class="num">02</span><h2>보내려는 메시지를 붙여넣어 주세요</h2></div>
-        <p class="step-description">이름이나 연락처는 지우고 입력해 주세요. 원문은 저장하지 않아요.</p>
+        <p class="step-description">AI 분석을 위해 메시지가 전송됩니다. 이름이나 연락처는 지우고 입력해 주세요.</p>
         <label for="message">메시지 원문</label>
         <div class="textarea-wrap">
           <textarea id="message" maxlength="1000" placeholder="이곳에 메시지를 입력하세요."></textarea>
@@ -215,7 +215,7 @@
         <p class="step-description">정답은 없어요. 가장 나답고 후회가 적을 문장을 선택하세요.</p>
         <div id="suggestions" class="suggestions"></div>
         <div class="actions"><button id="hold" class="hold" type="button">⏳ 지금은 보류하고 10분 뒤 다시 보기</button><button id="restart" class="restart" type="button">처음부터</button></div>
-        <p class="notice">프로토타입용 분석 결과입니다. 실제 버전에서는 서버측 AI 분석으로 교체됩니다.</p>
+        <p class="notice">AI 결과는 참고용이며 정답이 아닙니다. 입력한 원문은 서비스 데이터베이스에 저장하지 않아요.</p>
       </div>
     </section>
   </main>
@@ -252,68 +252,67 @@
       message.dispatchEvent(new Event('input')); message.focus();
     }));
 
-    const modeData = {
-      general: { score: 48, title: '조금 다듬고 보내는 게 좋아요', copy: '핵심을 앞에 두면 상대의 답장 부담을 줄일 수 있어요.' },
-      drunk: { score: 86, title: '지금은 보내지 않는 편을 권해요', copy: '감정이 큰 상태에서는 문장 수정보다 잠시 보류하는 것이 더 안전해요.' },
-      formal: { score: 57, title: '상대가 답하기 쉽게 정리해 볼까요?', copy: '신원, 용건, 필요한 기한을 분명히 하면 답을 받기 쉬워져요.' },
-      reject: { score: 62, title: '여지를 줄이고 경계를 분명히 해보세요', copy: '과한 미안함은 오히려 상대에게 기대를 남길 수 있어요.' }
-    };
-
-    function makeSuggestions(text) {
-      const goal = purpose.value.trim() || '제 뜻을 전하고 싶어요';
-      const who = relation.value;
-      if (selectedMode === 'drunk') return [
-        ['부드럽게', `지금은 감정이 조금 커진 것 같아서, 오늘은 보내지 않을게. 내일 다시 생각해보고 연락할게.`],
-        ['단호하게', `지금 연락하면 후회할 것 같아. 오늘은 여기까지만 생각하고 쉬려고 해.`],
-        ['짧게', `이 메시지는 내일 다시 볼게.`]
-      ];
-      if (selectedMode === 'formal') return [
-        ['부드럽게', `안녕하세요, ${who}님. ${goal}. 가능 여부를 확인해 주시면 감사하겠습니다.`],
-        ['단호하게', `안녕하세요, ${who}님. ${goal}. 가능 여부를 알려주시면 일정에 반영하겠습니다.`],
-        ['짧게', `안녕하세요, ${who}님. ${goal}. 확인 부탁드립니다.`]
-      ];
-      if (selectedMode === 'reject') return [
-        ['부드럽게', `제안해줘서 고마워. 이번에는 참여하기 어려울 것 같아. 즐거운 시간 보내길 바랄게.`],
-        ['단호하게', `초대해줘서 고마워. 이번 모임에는 참여하지 않을게. 양해 부탁해.`],
-        ['짧게', `초대 고마워. 이번에는 참석이 어려워.`]
-      ];
-      return [
-        ['부드럽게', `말해줘서 고마워. 나는 ${goal}. 서로 편한 방향으로 이야기해 보면 좋겠어.`],
-        ['단호하게', `내 입장은 분명해. ${goal}. 이 부분은 존중해 줬으면 해.`],
-        ['짧게', `${goal}. 확인하고 답해줘.`]
-      ];
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      })[char]);
     }
 
-    function analyze() {
+    function renderResult(result) {
+      document.querySelector('#riskScore').textContent = result.riskScore;
+      document.querySelector('#verdictTitle').textContent = result.verdict.title;
+      document.querySelector('#verdictCopy').textContent = result.verdict.description;
+      document.querySelector('#verdict').classList.toggle('safe', result.riskScore < 45);
+      document.querySelector('#warnings').innerHTML = result.warnings.map(item => `
+        <div class="warning">
+          <strong>${escapeHTML(item.label)}</strong><br>
+          ${escapeHTML(item.reason)}
+        </div>
+      `).join('');
+      document.querySelector('#suggestions').innerHTML = result.suggestions.map(item => `
+        <article class="suggestion">
+          <span class="tone">${escapeHTML(item.label)}</span>
+          <p>${escapeHTML(item.text)}</p>
+          <button class="copy" type="button" data-copy="${encodeURIComponent(item.text)}">이 문장 복사</button>
+        </article>
+      `).join('');
+      document.querySelectorAll('[data-copy]').forEach(copy => copy.addEventListener('click', async () => {
+        const value = decodeURIComponent(copy.dataset.copy);
+        try { await navigator.clipboard.writeText(value); showToast('수정문을 복사했어요.'); }
+        catch { showToast('복사하지 못했어요. 문장을 직접 선택해 주세요.'); }
+      }));
+      const hold = document.querySelector('#hold');
+      hold.textContent = result.recommendHold && result.holdMinutes
+        ? `⏳ 지금은 보류하고 ${result.holdMinutes}분 뒤 다시 보기`
+        : '⏳ 지금은 보류하고 10분 뒤 다시 보기';
+      results.classList.add('show');
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function analyze() {
       if (!message.value.trim()) { message.focus(); showToast('메시지 원문을 먼저 입력해 주세요.'); return; }
       const btn = document.querySelector('#analyze');
       btn.disabled = true; btn.textContent = '문장의 위험 지점을 살펴보는 중…';
-      setTimeout(() => {
-        const info = modeData[selectedMode];
-        const emotional = /(제발|왜|답장|당장|맨날|절대|진짜|싫어|짜증)/.test(message.value);
-        const score = Math.min(96, info.score + (emotional ? 9 : 0));
-        document.querySelector('#riskScore').textContent = score;
-        document.querySelector('#verdictTitle').textContent = info.title;
-        document.querySelector('#verdictCopy').textContent = info.copy;
-        document.querySelector('#verdict').classList.toggle('safe', score < 45);
-        const warningList = selectedMode === 'drunk'
-          ? [['감정이 높은 상태', '지금의 확신이 내일도 같을지 잠시 확인해 보세요.'], ['답장 압박', '상대에게 즉각적인 반응을 요구하는 표현은 부담이 될 수 있어요.']]
-          : selectedMode === 'formal'
-          ? [['용건이 뒤에 있어요', '요청을 먼저 말하고 이유는 짧게 덧붙이면 답하기 쉬워요.'], ['기한이 모호해요', '언제까지 답이 필요한지 구체적으로 알려주세요.']]
-          : selectedMode === 'reject'
-          ? [['여지가 남아 있어요', '“다음에 꼭” 같은 표현은 원치 않는 기대를 만들 수 있어요.'], ['사과가 길어요', '감사와 거절을 간결하게 전해도 충분히 예의 있어요.']]
-          : [['핵심이 조금 모호해요', '상대가 무엇에 답해야 하는지 한 문장으로 분명히 해보세요.'], ['문장이 길어질 수 있어요', '한 메시지에는 하나의 요청만 담으면 부담이 줄어요.']];
-        document.querySelector('#warnings').innerHTML = warningList.map(([a,b]) => `<div class="warning"><strong>${a}</strong><br>${b}</div>`).join('');
-        document.querySelector('#suggestions').innerHTML = makeSuggestions(message.value).map(([tone,text]) => `<article class="suggestion"><span class="tone">${tone}</span><p>${text}</p><button class="copy" type="button" data-copy="${encodeURIComponent(text)}">이 문장 복사</button></article>`).join('');
-        results.classList.add('show');
-        document.querySelectorAll('[data-copy]').forEach(copy => copy.addEventListener('click', async () => {
-          const value = decodeURIComponent(copy.dataset.copy);
-          try { await navigator.clipboard.writeText(value); showToast('수정문을 복사했어요.'); }
-          catch { showToast('복사할 문장을 선택했어요.'); }
-        }));
-        btn.disabled = false; btn.textContent = '보내기 전에 점검하기 →';
-        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 650);
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: selectedMode,
+            relationship: relation.value,
+            purpose: purpose.value.slice(0, 200),
+            message: message.value.slice(0, 1000)
+          })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || '분석 요청에 실패했습니다.');
+        renderResult(payload);
+      } catch (error) {
+        showToast(error.message || 'AI 분석 중 문제가 발생했어요.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '보내기 전에 점검하기 →';
+      }
     }
 
     function showToast(text) {
