@@ -278,8 +278,12 @@ export default {
             systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema,
+              responseFormat: {
+                text: {
+                  mimeType: "application/json",
+                  schema: responseSchema,
+                },
+              },
               maxOutputTokens: 1600,
             },
           }),
