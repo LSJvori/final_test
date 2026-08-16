@@ -90,7 +90,10 @@ const SYSTEM_INSTRUCTION = `
 `.trim();
 
 function jsonResponse(body, status = 200, requestId = "") {
-  return Response.json(body, {
+  const safeBody = status >= 400 && requestId && body && typeof body === "object"
+    ? { ...body, requestId }
+    : body;
+  return Response.json(safeBody, {
     status,
     headers: {
       "Cache-Control": "no-store, max-age=0",
@@ -99,6 +102,36 @@ function jsonResponse(body, status = 200, requestId = "") {
       ...(requestId ? { "X-Request-Id": requestId } : {}),
     },
   });
+}
+
+function redactLogValue(value) {
+  return String(value || "")
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[REDACTED_KEY]")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 500);
+}
+
+function logProviderError({ requestId, code, status, model, providerStatus, providerMessage }) {
+  // Deliberately exclude the API key, prompt, user message, relationship, and purpose.
+  console.error(JSON.stringify({
+    event: "gemini_api_error",
+    requestId,
+    code,
+    httpStatus: status,
+    providerStatus: redactLogValue(providerStatus),
+    providerMessage: redactLogValue(providerMessage),
+    model: redactLogValue(model),
+  }));
+}
+
+function classifyGeminiError(status) {
+  if (status === 400) return { code: "GEMINI_BAD_REQUEST", message: "Gemini 요청 형식이나 모델 설정을 확인해 주세요." };
+  if (status === 401) return { code: "GEMINI_AUTH_FAILED", message: "Gemini API 키 인증에 실패했습니다." };
+  if (status === 403) return { code: "GEMINI_PERMISSION_DENIED", message: "Gemini API 키의 권한 또는 제한 설정을 확인해 주세요." };
+  if (status === 404) return { code: "GEMINI_MODEL_NOT_FOUND", message: "설정한 Gemini 모델을 사용할 수 없습니다." };
+  if (status === 429) return { code: "GEMINI_QUOTA_EXCEEDED", message: "Gemini 무료 사용량 또는 요청 한도를 초과했습니다." };
+  if (status >= 500) return { code: "GEMINI_UPSTREAM_ERROR", message: "Gemini 서비스가 일시적으로 응답하지 않습니다." };
+  return { code: "GEMINI_REQUEST_FAILED", message: "Gemini 분석 요청이 거절되었습니다." };
 }
 
 function normalizeText(value, maxLength) {
@@ -255,21 +288,76 @@ export default {
       );
 
       if (!geminiResponse.ok) {
-        return jsonResponse({ error: "AI 분석 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 502, requestId);
+        let providerError = {};
+        try {
+          providerError = await geminiResponse.json();
+        } catch {
+          // Do not return or log an unstructured upstream body.
+        }
+        const diagnostic = classifyGeminiError(geminiResponse.status);
+        logProviderError({
+          requestId,
+          code: diagnostic.code,
+          status: geminiResponse.status,
+          model,
+          providerStatus: providerError?.error?.status,
+          providerMessage: providerError?.error?.message,
+        });
+        return jsonResponse({ error: diagnostic.message, code: diagnostic.code }, geminiResponse.status, requestId);
       }
 
       const payload = await geminiResponse.json();
       const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("");
       if (!text) {
-        return jsonResponse({ error: "안전 정책으로 인해 이 메시지를 분석하지 못했습니다." }, 422, requestId);
+        const finishReason = payload?.candidates?.[0]?.finishReason || payload?.promptFeedback?.blockReason || "EMPTY_RESPONSE";
+        logProviderError({
+          requestId,
+          code: "GEMINI_EMPTY_RESPONSE",
+          status: 422,
+          model,
+          providerStatus: finishReason,
+          providerMessage: "No text returned",
+        });
+        return jsonResponse({
+          error: "Gemini가 분석 결과를 반환하지 않았습니다. 입력 내용을 바꿔 다시 시도해 주세요.",
+          code: "GEMINI_EMPTY_RESPONSE",
+        }, 422, requestId);
       }
 
-      const result = cleanResult(JSON.parse(text));
+      let result;
+      try {
+        result = cleanResult(JSON.parse(text));
+      } catch (error) {
+        logProviderError({
+          requestId,
+          code: "GEMINI_INVALID_RESPONSE",
+          status: 502,
+          model,
+          providerStatus: "INVALID_JSON_OR_SCHEMA",
+          providerMessage: error?.message,
+        });
+        return jsonResponse({
+          error: "Gemini 응답 형식이 올바르지 않습니다. 다시 시도해 주세요.",
+          code: "GEMINI_INVALID_RESPONSE",
+        }, 502, requestId);
+      }
       return jsonResponse(result, 200, requestId);
     } catch (error) {
       const timedOut = error?.name === "AbortError";
+      const code = timedOut ? "GEMINI_TIMEOUT" : "GEMINI_NETWORK_ERROR";
+      logProviderError({
+        requestId,
+        code,
+        status: timedOut ? 504 : 502,
+        model,
+        providerStatus: error?.name,
+        providerMessage: error?.message,
+      });
       return jsonResponse(
-        { error: timedOut ? "AI 분석 시간이 초과되었습니다. 다시 시도해 주세요." : "AI 분석 중 오류가 발생했습니다." },
+        {
+          error: timedOut ? "Gemini 분석 시간이 초과되었습니다. 다시 시도해 주세요." : "Gemini 서버에 연결하지 못했습니다.",
+          code,
+        },
         timedOut ? 504 : 502,
         requestId
       );

@@ -305,7 +305,11 @@
           })
         });
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || '분석 요청에 실패했습니다.');
+        if (!response.ok) {
+          const diagnostic = [payload.code, payload.requestId && `요청 ${payload.requestId.slice(0, 8)}`]
+            .filter(Boolean).join(' · ');
+          throw new Error(`${payload.error || '분석 요청에 실패했습니다.'}${diagnostic ? ` (${diagnostic})` : ''}`);
+        }
         renderResult(payload);
       } catch (error) {
         showToast(error.message || 'AI 분석 중 문제가 발생했어요.');
