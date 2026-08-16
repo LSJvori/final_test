@@ -24,8 +24,12 @@
     }
 
     * { box-sizing: border-box; }
+    html { width: 100%; overflow-x: hidden; }
     body {
       margin: 0;
+      width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
       color: var(--ink);
       background:
         radial-gradient(circle at 12% 8%, rgba(88,101,242,.6), transparent 30rem),
@@ -38,7 +42,7 @@
       font-family: "Pretendard", "Plus Jakarta Sans", "Noto Sans KR", system-ui, sans-serif;
       line-height: 1.55;
     }
-    button, textarea, select, input { font: inherit; }
+    button, textarea, select, input { max-width: 100%; font: inherit; }
     ::placeholder { color: #8186a8; opacity: 1; }
     button { cursor: pointer; }
     @keyframes meshShift {
@@ -59,11 +63,12 @@
     .privacy { color: var(--muted); font-size: 13px; }
     main { padding: 72px 0 96px; }
     .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, .65fr); gap: 64px; align-items: end; margin-bottom: 52px; }
+    .hero > *, .panel, .step, .fields > *, .verdict > *, .suggestion { min-width: 0; }
     .hero-copy { max-width: 760px; }
     .eyebrow { display: inline-flex; padding: 6px 12px; border-radius: 50px; color: #fff; background: var(--magenta); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
     h1 { margin: 18px 0 18px; font-size: clamp(48px, 7vw, 82px); line-height: .96; letter-spacing: -.065em; font-weight: 900; text-transform: uppercase; }
     .hero p { margin: 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); }
-    .flow { display: flex; gap: 8px; margin: 30px 0 0; padding: 0; list-style: none; }
+    .flow { display: flex; width: 100%; max-width: 100%; gap: 8px; margin: 30px 0 0; padding: 0; list-style: none; }
     .flow li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
     .flow li:not(:last-child)::after { content: "→"; color: rgba(255,255,255,.34); }
     .flow .active { color: var(--ink); font-weight: 800; }
@@ -124,7 +129,7 @@
     .suggestion { display: flex; flex-direction: column; min-height: 250px; padding: 22px; border: 1px solid var(--line); border-radius: 20px; background: rgba(10,13,58,.75); transition: transform .18s, border-color .18s; }
     .suggestion:hover { transform: translateY(-4px); border-color: var(--accent); }
     .tone { width: max-content; margin-bottom: 12px; padding: 5px 10px; border-radius: 99px; color: #000; background: var(--green); font-size: 12px; font-weight: 900; }
-    .suggestion p { flex: 1; margin: 0; white-space: pre-line; }
+    .suggestion p { flex: 1; margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
     .copy { width: 100%; padding: 11px; border: 0; border-radius: 12px; color: #fff; background: var(--accent); font-weight: 800; }
     .copy:hover { background: #7180ff; }
     .actions { display: flex; gap: 10px; margin-top: 18px; }
@@ -139,16 +144,25 @@
       .hero-note { max-width: 520px; transform: none; }
       .modes, .suggestions { grid-template-columns: 1fr 1fr; }
       .suggestion:last-child { grid-column: 1 / -1; }
-      .flow { overflow-x: auto; padding-bottom: 6px; }
+      .flow { overflow-x: auto; padding: 0 0 8px; overscroll-behavior-inline: contain; scrollbar-width: thin; }
       .flow li { white-space: nowrap; }
     }
     @media (max-width: 540px) {
+      .shell { width: calc(100% - 24px); max-width: 1180px; }
+      main { padding: 34px 0 64px; }
       .privacy { display: none; }
       .modes, .fields, .suggestions { grid-template-columns: 1fr; }
       .suggestion:last-child { grid-column: auto; }
       .verdict { flex-direction: column; }
       .score { text-align: left; }
       .step-description { margin-left: 0; }
+      .panel { border-radius: 24px; }
+      .step { padding: 24px 18px; }
+      .hero-note { padding: 26px 22px; border-radius: 28px; }
+      .actions { flex-direction: column; }
+      .hold, .restart { width: 100%; }
+      h1 { font-size: clamp(42px, 15vw, 64px); overflow-wrap: anywhere; }
+      .examples { align-items: flex-start; }
     }
   </style>
 </head>
