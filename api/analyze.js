@@ -10,6 +10,8 @@ const ALLOWED_RELATIONSHIPS = new Set([
 
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 10;
+const GEMINI_MAX_ATTEMPTS = 3;
+const GEMINI_ATTEMPT_TIMEOUT_MS = 14_000;
 const rateBuckets = new Map();
 
 const responseSchema = {
@@ -132,6 +134,57 @@ function classifyGeminiError(status) {
   if (status === 429) return { code: "GEMINI_QUOTA_EXCEEDED", message: "Gemini 무료 사용량 또는 요청 한도를 초과했습니다." };
   if (status >= 500) return { code: "GEMINI_UPSTREAM_ERROR", message: "Gemini 서비스가 일시적으로 응답하지 않습니다." };
   return { code: "GEMINI_REQUEST_FAILED", message: "Gemini 분석 요청이 거절되었습니다." };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function fetchGeminiWithRetry(url, options, requestId, model) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GEMINI_ATTEMPT_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      if (!isTransientStatus(response.status) || attempt === GEMINI_MAX_ATTEMPTS) return response;
+
+      // Release the body before retrying. Never log it because upstream errors may contain metadata.
+      await response.text().catch(() => "");
+      console.warn(JSON.stringify({
+        event: "gemini_api_retry",
+        requestId,
+        model: redactLogValue(model),
+        attempt,
+        status: response.status,
+      }));
+    } catch (error) {
+      lastError = error;
+      const transient = error?.name === "AbortError" || error instanceof TypeError;
+      if (!transient || attempt === GEMINI_MAX_ATTEMPTS) throw error;
+      console.warn(JSON.stringify({
+        event: "gemini_api_retry",
+        requestId,
+        model: redactLogValue(model),
+        attempt,
+        status: error?.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR",
+      }));
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const exponentialDelay = 800 * (2 ** (attempt - 1));
+    const jitter = Math.floor(Math.random() * 350);
+    await sleep(exponentialDelay + jitter);
+  }
+
+  throw lastError || new Error("Gemini request failed");
 }
 
 function normalizeText(value, maxLength) {
@@ -262,11 +315,8 @@ export default {
     ].join("\n");
 
     const model = normalizeText(process.env.GEMINI_MODEL, 80) || "gemini-3.5-flash";
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20_000);
-
     try {
-      const geminiResponse = await fetch(
+      const geminiResponse = await fetchGeminiWithRetry(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
@@ -287,8 +337,9 @@ export default {
               maxOutputTokens: 1600,
             },
           }),
-          signal: controller.signal,
-        }
+        },
+        requestId,
+        model
       );
 
       if (!geminiResponse.ok) {
@@ -365,8 +416,6 @@ export default {
         timedOut ? 504 : 502,
         requestId
       );
-    } finally {
-      clearTimeout(timeout);
     }
   },
 };
