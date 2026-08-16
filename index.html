@@ -82,13 +82,12 @@
     h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
     .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .mode {
-      position: relative; min-height: 162px; padding: 20px; text-align: left; border: 1px solid var(--line); border-radius: 17px;
+      position: relative; min-height: 126px; padding: 22px 20px; text-align: left; border: 1px solid var(--line); border-radius: 17px;
       background: rgba(10,13,58,.72); color: var(--ink); transition: .18s ease; overflow: hidden;
     }
     .mode:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.35); background: rgba(88,101,242,.15); }
     .mode.selected { border-color: var(--accent); background: linear-gradient(145deg, rgba(88,101,242,.34), rgba(236,72,189,.18)); box-shadow: 0 0 0 2px var(--accent); }
     .mode.selected::after { content: "선택됨"; position: absolute; top: 12px; right: 12px; padding: 3px 7px; border-radius: 99px; color: #fff; background: var(--accent); font-size: 10px; font-weight: 800; }
-    .mode span { display: block; font-size: 23px; margin-bottom: 8px; }
     .mode strong { display: block; }
     .mode small { display: block; margin-top: 4px; color: var(--muted); }
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
@@ -180,10 +179,10 @@
         <div class="step-head"><span class="num">01</span><h2>어떤 상황인가요?</h2></div>
         <p class="step-description">상황에 따라 위험을 판단하는 기준과 제안하는 행동이 달라져요.</p>
         <div class="modes" role="radiogroup" aria-label="상황 선택">
-          <button class="mode selected" type="button" data-mode="general" role="radio" aria-checked="true"><span>💬</span><strong>어려운 대답</strong><small>말투는 유지하고 부담은 줄이기</small></button>
-          <button class="mode" type="button" data-mode="drunk" role="radio" aria-checked="false"><span>🌙</span><strong>술 마시고 연락</strong><small>고쳐 쓰기보다 보류 먼저</small></button>
-          <button class="mode" type="button" data-mode="formal" role="radio" aria-checked="false"><span>🎓</span><strong>교수님 · 선배</strong><small>답하기 쉬운 메시지로</small></button>
-          <button class="mode" type="button" data-mode="reject" role="radio" aria-checked="false"><span>🧭</span><strong>거절하기</strong><small>존중하되 경계는 분명히</small></button>
+          <button class="mode selected" type="button" data-mode="general" role="radio" aria-checked="true"><strong>어려운 대답</strong><small>말투는 유지하고 부담은 줄이기</small></button>
+          <button class="mode" type="button" data-mode="drunk" role="radio" aria-checked="false"><strong>술 마시고 연락</strong><small>고쳐 쓰기보다 보류 먼저</small></button>
+          <button class="mode" type="button" data-mode="formal" role="radio" aria-checked="false"><strong>교수님 · 선배</strong><small>답하기 쉬운 메시지로</small></button>
+          <button class="mode" type="button" data-mode="reject" role="radio" aria-checked="false"><strong>거절하기</strong><small>존중하되 경계는 분명히</small></button>
         </div>
         <div class="fields">
           <div><label for="relation">상대방과의 관계</label><select id="relation"><option>친구</option><option>연인 / 전 연인</option><option>교수님</option><option>선배 / 직장 상사</option><option>동료</option><option>기타</option></select></div>
