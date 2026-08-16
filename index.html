@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="메시지를 보내기 전, 후회하지 않을 선택을 돕는 AI 메시지 점검 프로토타입">
+  <title>보내도 돼? - 메시지 전송 전 판단 도구</title>
+  <style>
+    :root {
+      --ink: #ffffff;
+      --muted: #b9bbd0;
+      --paper: #0a0d3a;
+      --card: #1e2353;
+      --line: rgba(255,255,255,.12);
+      --accent: #5865f2;
+      --accent-soft: rgba(88,101,242,.25);
+      --green: #35ed7e;
+      --green-soft: rgba(53,237,126,.18);
+      --yellow: #ffcf54;
+      --yellow-soft: rgba(236,72,189,.18);
+      --magenta: #ec48bd;
+      --onyx: #23272a;
+      --shadow: 0 3px 68px rgba(69,42,124,.3);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(88,101,242,.6), transparent 30rem),
+        radial-gradient(circle at 88% 22%, rgba(236,72,189,.34), transparent 28rem),
+        radial-gradient(circle at 48% 70%, rgba(88,101,242,.22), transparent 34rem),
+        var(--paper);
+      background-size: 115% 115%, 125% 125%, 120% 120%, auto;
+      background-attachment: fixed;
+      animation: meshShift 14s ease-in-out infinite alternate;
+      font-family: "Pretendard", "Plus Jakarta Sans", "Noto Sans KR", system-ui, sans-serif;
+      line-height: 1.55;
+    }
+    button, textarea, select, input { font: inherit; }
+    ::placeholder { color: #8186a8; opacity: 1; }
+    button { cursor: pointer; }
+    @keyframes meshShift {
+      from { background-position: 0 0, 100% 0, 50% 100%, 0 0; }
+      to { background-position: 7% 5%, 93% 9%, 44% 88%, 0 0; }
+    }
+    @media (prefers-reduced-motion: reduce) { body { animation: none; } }
+    .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    header {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; letter-spacing: -.04em; }
+    .brand-mark { width: 18px; height: 18px; border-radius: 6px 10px 6px 10px; background: var(--accent); box-shadow: 10px 5px 0 var(--magenta); transform: rotate(-8deg); }
+    .privacy { color: var(--muted); font-size: 13px; }
+    main { padding: 72px 0 96px; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, .65fr); gap: 64px; align-items: end; margin-bottom: 52px; }
+    .hero-copy { max-width: 760px; }
+    .eyebrow { display: inline-flex; padding: 6px 12px; border-radius: 50px; color: #fff; background: var(--magenta); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 18px 0 18px; font-size: clamp(48px, 7vw, 82px); line-height: .96; letter-spacing: -.065em; font-weight: 900; text-transform: uppercase; }
+    .hero p { margin: 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); }
+    .flow { display: flex; gap: 8px; margin: 30px 0 0; padding: 0; list-style: none; }
+    .flow li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .flow li:not(:last-child)::after { content: "→"; color: rgba(255,255,255,.34); }
+    .flow .active { color: var(--ink); font-weight: 800; }
+    .hero-note { position: relative; padding: 30px; border: 1px solid rgba(255,255,255,.15); border-radius: 40px; background: linear-gradient(145deg, var(--accent), #7a4ff2 48%, var(--magenta)); box-shadow: var(--shadow); transform: rotate(1.25deg); overflow: hidden; }
+    .hero-note::before { content: ""; position: absolute; width: 150px; height: 150px; right: -55px; top: -55px; border: 24px solid rgba(255,255,255,.12); border-radius: 50%; }
+    .hero-note .quote { margin: 0 0 24px; font-size: 22px; font-weight: 800; line-height: 1.35; letter-spacing: -.04em; }
+    .hero-note dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 0; font-size: 13px; }
+    .hero-note dt { color: var(--muted); }
+    .hero-note dd { margin: 0; font-weight: 750; text-align: right; }
+    .panel { position: relative; background: rgba(30,35,83,.93); border: 1px solid var(--line); border-radius: 40px; box-shadow: var(--shadow); overflow: hidden; backdrop-filter: blur(18px); }
+    .step { padding: clamp(24px, 4vw, 42px); }
+    .step + .step { border-top: 1px solid var(--line); }
+    .step-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+    .step-description { margin: 0 0 24px 39px; color: var(--muted); font-size: 14px; }
+    .num { display: inline-grid; place-items: center; width: 27px; height: 27px; border-radius: 9px; color: #fff; background: var(--magenta); font: 800 11px/1 monospace; letter-spacing: .05em; }
+    h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+    .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .mode {
+      position: relative; min-height: 162px; padding: 20px; text-align: left; border: 1px solid var(--line); border-radius: 17px;
+      background: rgba(10,13,58,.72); color: var(--ink); transition: .18s ease; overflow: hidden;
+    }
+    .mode:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.35); background: rgba(88,101,242,.15); }
+    .mode.selected { border-color: var(--accent); background: linear-gradient(145deg, rgba(88,101,242,.34), rgba(236,72,189,.18)); box-shadow: 0 0 0 2px var(--accent); }
+    .mode.selected::after { content: "선택됨"; position: absolute; top: 12px; right: 12px; padding: 3px 7px; border-radius: 99px; color: #fff; background: var(--accent); font-size: 10px; font-weight: 800; }
+    .mode span { display: block; font-size: 23px; margin-bottom: 8px; }
+    .mode strong { display: block; }
+    .mode small { display: block; margin-top: 4px; color: var(--muted); }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+    label { display: block; font-size: 13px; font-weight: 750; margin-bottom: 7px; }
+    select, input, textarea {
+      width: 100%; border: 1px solid var(--line); border-radius: 14px; background: rgba(10,13,58,.78);
+      color: var(--ink); outline: none; transition: .15s; 
+    }
+    select, input { height: 48px; padding: 0 14px; }
+    textarea { min-height: 180px; resize: vertical; padding: 16px; }
+    select:focus, input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,79,61,.13); }
+    .textarea-wrap { position: relative; }
+    .counter { position: absolute; right: 12px; bottom: 10px; color: var(--muted); font-size: 12px; background: #0a0d3a; padding: 3px 7px; border-radius: 6px; }
+    .examples { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .chip { border: 1px solid var(--line); border-radius: 999px; background: rgba(88,101,242,.16); padding: 7px 12px; color: #fff; }
+    .chip:hover { background: var(--accent); }
+    .primary { width: 100%; margin-top: 20px; padding: 18px 20px; border: 0; border-radius: 12px; color: #000; background: var(--green); font-weight: 900; box-shadow: 0 8px 28px rgba(53,237,126,.17); }
+    .primary:hover { background: #67f59b; transform: translateY(-1px); }
+    .primary:disabled { cursor: wait; opacity: .65; }
+    #results { display: none; }
+    #results.show { display: block; animation: reveal .35s ease; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(12px); } }
+    .verdict { display: flex; justify-content: space-between; gap: 30px; padding: 30px; border: 1px solid rgba(236,72,189,.35); border-radius: 24px; background: linear-gradient(135deg, rgba(236,72,189,.28), rgba(88,101,242,.24)); }
+    .verdict.safe { background: var(--green-soft); }
+    .verdict h3 { margin: 0 0 5px; font-size: 23px; }
+    .verdict p { margin: 0; color: var(--muted); }
+    .score { flex: 0 0 auto; text-align: right; }
+    .score strong { display: block; font-size: 34px; line-height: 1; }
+    .score span { color: var(--muted); font-size: 12px; }
+    .warnings { margin: 22px 0 30px; display: grid; gap: 9px; }
+    .warning { padding: 16px 18px; border-left: 3px solid var(--magenta); border-radius: 0 14px 14px 0; background: rgba(10,13,58,.7); }
+    .warning strong { color: #ff79d1; }
+    .suggestions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .suggestion { display: flex; flex-direction: column; min-height: 250px; padding: 22px; border: 1px solid var(--line); border-radius: 20px; background: rgba(10,13,58,.75); transition: transform .18s, border-color .18s; }
+    .suggestion:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .tone { width: max-content; margin-bottom: 12px; padding: 5px 10px; border-radius: 99px; color: #000; background: var(--green); font-size: 12px; font-weight: 900; }
+    .suggestion p { flex: 1; margin: 0; white-space: pre-line; }
+    .copy { width: 100%; padding: 11px; border: 0; border-radius: 12px; color: #fff; background: var(--accent); font-weight: 800; }
+    .copy:hover { background: #7180ff; }
+    .actions { display: flex; gap: 10px; margin-top: 18px; }
+    .hold { flex: 1; border: 1px solid rgba(236,72,189,.35); border-radius: 12px; padding: 14px; color: #fff; background: rgba(236,72,189,.2); font-weight: 800; }
+    .restart { border: 1px solid var(--line); border-radius: 12px; padding: 14px 20px; color: #fff; background: rgba(255,255,255,.06); }
+    .notice { margin-top: 26px; text-align: center; color: var(--muted); font-size: 12px; }
+    .toast { position: fixed; left: 50%; bottom: 24px; z-index: 5; transform: translate(-50%, 90px); opacity: 0; background: var(--green); color: #000; padding: 12px 18px; border-radius: 99px; font-weight: 800; transition: .25s; }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    @media (max-width: 800px) {
+      main { padding-top: 42px; }
+      .hero { grid-template-columns: 1fr; gap: 28px; }
+      .hero-note { max-width: 520px; transform: none; }
+      .modes, .suggestions { grid-template-columns: 1fr 1fr; }
+      .suggestion:last-child { grid-column: 1 / -1; }
+      .flow { overflow-x: auto; padding-bottom: 6px; }
+      .flow li { white-space: nowrap; }
+    }
+    @media (max-width: 540px) {
+      .privacy { display: none; }
+      .modes, .fields, .suggestions { grid-template-columns: 1fr; }
+      .suggestion:last-child { grid-column: auto; }
+      .verdict { flex-direction: column; }
+      .score { text-align: left; }
+      .step-description { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>보내도 돼?</div>
+    <div class="privacy">🔒 원문과 개인정보를 저장하지 않아요.</div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Before you hit send · AI message check</div>
+        <h1>잠깐, 이대로<br>보내도 될까?</h1>
+        <p>더 그럴듯한 문장보다, 내일 후회하지 않을 선택을 도와드려요.</p>
+        <ol class="flow" aria-label="이용 순서">
+          <li class="active">상황 설정</li><li>원문 입력</li><li>위험 확인</li><li>대안 비교</li><li>복사 또는 보류</li>
+        </ol>
+      </div>
+      <aside class="hero-note" aria-label="서비스 원칙">
+        <p class="quote">“안 보내기”도<br>좋은 답이 될 수 있어요.</p>
+        <dl><dt>점검 시간</dt><dd>약 30초</dd><dt>제공하는 대안</dt><dd>3가지 말투</dd><dt>메시지 저장</dt><dd>하지 않음</dd></dl>
+      </aside>
+    </section>
+
+    <section class="panel" aria-label="메시지 점검">
+      <div class="step">
+        <div class="step-head"><span class="num">01</span><h2>어떤 상황인가요?</h2></div>
+        <p class="step-description">상황에 따라 위험을 판단하는 기준과 제안하는 행동이 달라져요.</p>
+        <div class="modes" role="radiogroup" aria-label="상황 선택">
+          <button class="mode selected" type="button" data-mode="general" role="radio" aria-checked="true"><span>💬</span><strong>어려운 대답</strong><small>말투는 유지하고 부담은 줄이기</small></button>
+          <button class="mode" type="button" data-mode="drunk" role="radio" aria-checked="false"><span>🌙</span><strong>술 마시고 연락</strong><small>고쳐 쓰기보다 보류 먼저</small></button>
+          <button class="mode" type="button" data-mode="formal" role="radio" aria-checked="false"><span>🎓</span><strong>교수님 · 선배</strong><small>답하기 쉬운 메시지로</small></button>
+          <button class="mode" type="button" data-mode="reject" role="radio" aria-checked="false"><span>🧭</span><strong>거절하기</strong><small>존중하되 경계는 분명히</small></button>
+        </div>
+        <div class="fields">
+          <div><label for="relation">상대방과의 관계</label><select id="relation"><option>친구</option><option>연인 / 전 연인</option><option>교수님</option><option>선배 / 직장 상사</option><option>동료</option><option>기타</option></select></div>
+          <div><label for="purpose">메시지의 목적</label><input id="purpose" placeholder="예: 약속을 거절하고 싶어요"></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-head"><span class="num">02</span><h2>보내려는 메시지를 붙여넣어 주세요</h2></div>
+        <p class="step-description">이름이나 연락처는 지우고 입력해 주세요. 원문은 저장하지 않아요.</p>
+        <label for="message">메시지 원문</label>
+        <div class="textarea-wrap">
+          <textarea id="message" maxlength="1000" placeholder="이곳에 메시지를 입력하세요."></textarea>
+          <span class="counter"><b id="count">0</b> / 1,000</span>
+        </div>
+        <div class="examples"><span>예시로 체험하기</span><button class="chip" data-example="formal">교수님께 부탁</button><button class="chip" data-example="reject">모임 거절</button><button class="chip" data-example="drunk">전 연인에게 연락</button></div>
+        <button id="analyze" class="primary" type="button">보내기 전에 점검하기 →</button>
+      </div>
+
+      <div id="results" class="step" aria-live="polite">
+        <div class="step-head"><span class="num">03</span><h2>AI 점검 결과</h2></div>
+        <p class="step-description">점수보다 어떤 표현이 부담이 될 수 있는지 먼저 확인해 보세요.</p>
+        <div id="verdict" class="verdict">
+          <div><h3 id="verdictTitle">조금 다듬고 보내는 게 좋아요</h3><p id="verdictCopy">상대가 답하기 어렵거나 감정적으로 느낄 수 있는 부분이 있어요.</p></div>
+          <div class="score"><strong id="riskScore">68</strong><span>전송 위험도 / 100</span></div>
+        </div>
+        <div id="warnings" class="warnings"></div>
+        <div class="step-head"><span class="num">04</span><h2>내 말투에 가까운 대안을 골라보세요</h2></div>
+        <p class="step-description">정답은 없어요. 가장 나답고 후회가 적을 문장을 선택하세요.</p>
+        <div id="suggestions" class="suggestions"></div>
+        <div class="actions"><button id="hold" class="hold" type="button">⏳ 지금은 보류하고 10분 뒤 다시 보기</button><button id="restart" class="restart" type="button">처음부터</button></div>
+        <p class="notice">프로토타입용 분석 결과입니다. 실제 버전에서는 서버측 AI 분석으로 교체됩니다.</p>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    const modes = document.querySelectorAll('.mode');
+    const message = document.querySelector('#message');
+    const purpose = document.querySelector('#purpose');
+    const relation = document.querySelector('#relation');
+    const results = document.querySelector('#results');
+    let selectedMode = 'general';
+
+    const examples = {
+      formal: { mode: 'formal', relation: '교수님', purpose: '과제 제출 기한을 문의하고 싶어요', text: '교수님 저 과제 제출을 조금 늦게 해도 될까요? 요즘 너무 바빠서 못 했습니다. 확인 부탁드려요.' },
+      reject: { mode: 'reject', relation: '친구', purpose: '이번 주말 모임을 거절하고 싶어요', text: '미안한데 이번엔 좀 힘들 것 같아. 다음에 상황 되면 꼭 갈게. 혹시 시간 바뀌면 다시 알려줘.' },
+      drunk: { mode: 'drunk', relation: '연인 / 전 연인', purpose: '보고 싶다는 말을 전하고 싶어요', text: '자니? 갑자기 네 생각나서. 솔직히 아직도 내가 왜 싫었는지 모르겠어. 답장 좀 해줘.' }
+    };
+
+    function chooseMode(mode) {
+      selectedMode = mode;
+      modes.forEach(btn => {
+        const on = btn.dataset.mode === mode;
+        btn.classList.toggle('selected', on);
+        btn.setAttribute('aria-checked', String(on));
+      });
+    }
+
+    modes.forEach(btn => btn.addEventListener('click', () => chooseMode(btn.dataset.mode)));
+    message.addEventListener('input', () => document.querySelector('#count').textContent = message.value.length);
+    document.querySelectorAll('[data-example]').forEach(btn => btn.addEventListener('click', () => {
+      const item = examples[btn.dataset.example];
+      chooseMode(item.mode); relation.value = item.relation; purpose.value = item.purpose; message.value = item.text;
+      message.dispatchEvent(new Event('input')); message.focus();
+    }));
+
+    const modeData = {
+      general: { score: 48, title: '조금 다듬고 보내는 게 좋아요', copy: '핵심을 앞에 두면 상대의 답장 부담을 줄일 수 있어요.' },
+      drunk: { score: 86, title: '지금은 보내지 않는 편을 권해요', copy: '감정이 큰 상태에서는 문장 수정보다 잠시 보류하는 것이 더 안전해요.' },
+      formal: { score: 57, title: '상대가 답하기 쉽게 정리해 볼까요?', copy: '신원, 용건, 필요한 기한을 분명히 하면 답을 받기 쉬워져요.' },
+      reject: { score: 62, title: '여지를 줄이고 경계를 분명히 해보세요', copy: '과한 미안함은 오히려 상대에게 기대를 남길 수 있어요.' }
+    };
+
+    function makeSuggestions(text) {
+      const goal = purpose.value.trim() || '제 뜻을 전하고 싶어요';
+      const who = relation.value;
+      if (selectedMode === 'drunk') return [
+        ['부드럽게', `지금은 감정이 조금 커진 것 같아서, 오늘은 보내지 않을게. 내일 다시 생각해보고 연락할게.`],
+        ['단호하게', `지금 연락하면 후회할 것 같아. 오늘은 여기까지만 생각하고 쉬려고 해.`],
+        ['짧게', `이 메시지는 내일 다시 볼게.`]
+      ];
+      if (selectedMode === 'formal') return [
+        ['부드럽게', `안녕하세요, ${who}님. ${goal}. 가능 여부를 확인해 주시면 감사하겠습니다.`],
+        ['단호하게', `안녕하세요, ${who}님. ${goal}. 가능 여부를 알려주시면 일정에 반영하겠습니다.`],
+        ['짧게', `안녕하세요, ${who}님. ${goal}. 확인 부탁드립니다.`]
+      ];
+      if (selectedMode === 'reject') return [
+        ['부드럽게', `제안해줘서 고마워. 이번에는 참여하기 어려울 것 같아. 즐거운 시간 보내길 바랄게.`],
+        ['단호하게', `초대해줘서 고마워. 이번 모임에는 참여하지 않을게. 양해 부탁해.`],
+        ['짧게', `초대 고마워. 이번에는 참석이 어려워.`]
+      ];
+      return [
+        ['부드럽게', `말해줘서 고마워. 나는 ${goal}. 서로 편한 방향으로 이야기해 보면 좋겠어.`],
+        ['단호하게', `내 입장은 분명해. ${goal}. 이 부분은 존중해 줬으면 해.`],
+        ['짧게', `${goal}. 확인하고 답해줘.`]
+      ];
+    }
+
+    function analyze() {
+      if (!message.value.trim()) { message.focus(); showToast('메시지 원문을 먼저 입력해 주세요.'); return; }
+      const btn = document.querySelector('#analyze');
+      btn.disabled = true; btn.textContent = '문장의 위험 지점을 살펴보는 중…';
+      setTimeout(() => {
+        const info = modeData[selectedMode];
+        const emotional = /(제발|왜|답장|당장|맨날|절대|진짜|싫어|짜증)/.test(message.value);
+        const score = Math.min(96, info.score + (emotional ? 9 : 0));
+        document.querySelector('#riskScore').textContent = score;
+        document.querySelector('#verdictTitle').textContent = info.title;
+        document.querySelector('#verdictCopy').textContent = info.copy;
+        document.querySelector('#verdict').classList.toggle('safe', score < 45);
+        const warningList = selectedMode === 'drunk'
+          ? [['감정이 높은 상태', '지금의 확신이 내일도 같을지 잠시 확인해 보세요.'], ['답장 압박', '상대에게 즉각적인 반응을 요구하는 표현은 부담이 될 수 있어요.']]
+          : selectedMode === 'formal'
+          ? [['용건이 뒤에 있어요', '요청을 먼저 말하고 이유는 짧게 덧붙이면 답하기 쉬워요.'], ['기한이 모호해요', '언제까지 답이 필요한지 구체적으로 알려주세요.']]
+          : selectedMode === 'reject'
+          ? [['여지가 남아 있어요', '“다음에 꼭” 같은 표현은 원치 않는 기대를 만들 수 있어요.'], ['사과가 길어요', '감사와 거절을 간결하게 전해도 충분히 예의 있어요.']]
+          : [['핵심이 조금 모호해요', '상대가 무엇에 답해야 하는지 한 문장으로 분명히 해보세요.'], ['문장이 길어질 수 있어요', '한 메시지에는 하나의 요청만 담으면 부담이 줄어요.']];
+        document.querySelector('#warnings').innerHTML = warningList.map(([a,b]) => `<div class="warning"><strong>${a}</strong><br>${b}</div>`).join('');
+        document.querySelector('#suggestions').innerHTML = makeSuggestions(message.value).map(([tone,text]) => `<article class="suggestion"><span class="tone">${tone}</span><p>${text}</p><button class="copy" type="button" data-copy="${encodeURIComponent(text)}">이 문장 복사</button></article>`).join('');
+        results.classList.add('show');
+        document.querySelectorAll('[data-copy]').forEach(copy => copy.addEventListener('click', async () => {
+          const value = decodeURIComponent(copy.dataset.copy);
+          try { await navigator.clipboard.writeText(value); showToast('수정문을 복사했어요.'); }
+          catch { showToast('복사할 문장을 선택했어요.'); }
+        }));
+        btn.disabled = false; btn.textContent = '보내기 전에 점검하기 →';
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 650);
+    }
+
+    function showToast(text) {
+      const toast = document.querySelector('#toast'); toast.textContent = text; toast.classList.add('show');
+      clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    document.querySelector('#analyze').addEventListener('click', analyze);
+    document.querySelector('#hold').addEventListener('click', () => showToast('좋은 선택이에요. 10분 뒤 다시 확인해 보세요.'));
+    document.querySelector('#restart').addEventListener('click', () => { results.classList.remove('show'); message.value = ''; purpose.value = ''; message.dispatchEvent(new Event('input')); chooseMode('general'); window.scrollTo({top: 0, behavior: 'smooth'}); });
+  </script>
+</body>
+</html>
