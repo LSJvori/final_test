@@ -115,6 +115,12 @@
     .examples { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: 12px; }
     .chip { border: 1px solid var(--line); border-radius: 999px; background: rgba(88,101,242,.16); padding: 7px 12px; color: #fff; }
     .chip:hover { background: var(--accent); }
+    .language-picker { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(10,13,58,.5); }
+    .language-picker > span { font-size: 13px; font-weight: 750; }
+    .language-options { display: flex; gap: 6px; padding: 4px; border-radius: 11px; background: rgba(255,255,255,.06); }
+    .language-option { padding: 7px 13px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 800; }
+    .language-option.selected { color: #000; background: var(--green); }
+    .language-option:focus-visible { outline: 3px solid rgba(53,237,126,.4); outline-offset: 2px; }
     .primary { width: 100%; margin-top: 20px; padding: 18px 20px; border: 0; border-radius: 12px; color: #000; background: var(--green); font-weight: 900; box-shadow: 0 8px 28px rgba(53,237,126,.17); }
     .primary:hover { background: #67f59b; transform: translateY(-1px); }
     .primary:disabled { cursor: wait; opacity: .65; }
@@ -169,6 +175,9 @@
       .hold, .restart { width: 100%; }
       h1 { font-size: clamp(42px, 15vw, 64px); overflow-wrap: anywhere; }
       .examples { align-items: flex-start; }
+      .language-picker { align-items: flex-start; flex-direction: column; }
+      .language-options { width: 100%; }
+      .language-option { flex: 1; }
     }
   </style>
 </head>
@@ -226,6 +235,13 @@
           <span class="counter"><b id="count">0</b> / 1,000</span>
         </div>
         <div class="examples"><span>예시로 체험하기</span><button class="chip" data-example="formal">교수님께 부탁</button><button class="chip" data-example="reject">모임 거절</button><button class="chip" data-example="drunk">전 연인에게 연락</button></div>
+        <div class="language-picker">
+          <span>AI 피드백 언어</span>
+          <div class="language-options" role="radiogroup" aria-label="AI 피드백 언어 선택">
+            <button class="language-option selected" type="button" data-language="ko" role="radio" aria-checked="true">한국어</button>
+            <button class="language-option" type="button" data-language="en" role="radio" aria-checked="false">English</button>
+          </div>
+        </div>
         <button id="analyze" class="primary" type="button">보내기 전에 점검하기 →</button>
       </div>
 
@@ -256,6 +272,7 @@
     const otherRelationField = document.querySelector('#otherRelationField');
     const results = document.querySelector('#results');
     let selectedMode = 'general';
+    let selectedLanguage = 'ko';
 
     const examples = {
       formal: { mode: 'formal', relation: '교수님', purpose: '과제 제출 기한을 문의하고 싶어요', text: '교수님 저 과제 제출을 조금 늦게 해도 될까요? 요즘 너무 바빠서 못 했습니다. 확인 부탁드려요.' },
@@ -273,6 +290,15 @@
     }
 
     modes.forEach(btn => btn.addEventListener('click', () => chooseMode(btn.dataset.mode)));
+    document.querySelectorAll('.language-option').forEach(btn => btn.addEventListener('click', () => {
+      selectedLanguage = btn.dataset.language;
+      document.querySelectorAll('.language-option').forEach(option => {
+        const on = option === btn;
+        option.classList.toggle('selected', on);
+        option.setAttribute('aria-checked', String(on));
+      });
+      results.classList.remove('show');
+    }));
     relation.addEventListener('change', () => {
       const isOther = relation.value === '기타';
       otherRelationField.classList.toggle('show', isOther);
@@ -337,7 +363,8 @@
             relationship: relation.value,
             relationshipDetail: relation.value === '기타' ? relationDetail.value.slice(0, 60) : '',
             purpose: purpose.value.slice(0, 200),
-            message: message.value.slice(0, 1000)
+            message: message.value.slice(0, 1000),
+            outputLanguage: selectedLanguage
           })
         });
         const payload = await response.json().catch(() => ({}));
@@ -369,6 +396,12 @@
       otherRelationField.classList.remove('show');
       message.dispatchEvent(new Event('input'));
       chooseMode('general');
+      selectedLanguage = 'ko';
+      document.querySelectorAll('.language-option').forEach(option => {
+        const on = option.dataset.language === 'ko';
+        option.classList.toggle('selected', on);
+        option.setAttribute('aria-checked', String(on));
+      });
       document.querySelector('#hold').textContent = '⏳ 지금은 보류하고 10분 뒤 다시 보기';
       if (notify) showToast('처음 상태로 초기화했어요.');
       if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
