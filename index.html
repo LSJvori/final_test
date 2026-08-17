@@ -100,6 +100,8 @@
     .mode strong { display: block; }
     .mode small { display: block; margin-top: 4px; color: var(--muted); }
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+    .other-relation { display: none; grid-column: 1 / -1; }
+    .other-relation.show { display: block; }
     label { display: block; font-size: 13px; font-weight: 750; margin-bottom: 7px; }
     select, input, textarea {
       width: 100%; border: 1px solid var(--line); border-radius: 14px; background: rgba(10,13,58,.78);
@@ -208,6 +210,10 @@
         <div class="fields">
           <div><label for="relation">상대방과의 관계</label><select id="relation"><option>친구</option><option>연인 / 전 연인</option><option>교수님</option><option>선배 / 직장 상사</option><option>동료</option><option>기타</option></select></div>
           <div><label for="purpose">메시지의 목적</label><input id="purpose" placeholder="예: 약속을 거절하고 싶어요"></div>
+          <div id="otherRelationField" class="other-relation">
+            <label for="relationDetail">어떤 관계인가요?</label>
+            <input id="relationDetail" maxlength="60" placeholder="예: 동아리 회장, 룸메이트, 처음 연락하는 사람">
+          </div>
         </div>
       </div>
 
@@ -246,6 +252,8 @@
     const message = document.querySelector('#message');
     const purpose = document.querySelector('#purpose');
     const relation = document.querySelector('#relation');
+    const relationDetail = document.querySelector('#relationDetail');
+    const otherRelationField = document.querySelector('#otherRelationField');
     const results = document.querySelector('#results');
     let selectedMode = 'general';
 
@@ -265,10 +273,17 @@
     }
 
     modes.forEach(btn => btn.addEventListener('click', () => chooseMode(btn.dataset.mode)));
+    relation.addEventListener('change', () => {
+      const isOther = relation.value === '기타';
+      otherRelationField.classList.toggle('show', isOther);
+      if (!isOther) relationDetail.value = '';
+      else relationDetail.focus();
+    });
     message.addEventListener('input', () => document.querySelector('#count').textContent = message.value.length);
     document.querySelectorAll('[data-example]').forEach(btn => btn.addEventListener('click', () => {
       const item = examples[btn.dataset.example];
       chooseMode(item.mode); relation.value = item.relation; purpose.value = item.purpose; message.value = item.text;
+      relationDetail.value = ''; otherRelationField.classList.remove('show');
       message.dispatchEvent(new Event('input')); message.focus();
     }));
 
@@ -320,6 +335,7 @@
           body: JSON.stringify({
             mode: selectedMode,
             relationship: relation.value,
+            relationshipDetail: relation.value === '기타' ? relationDetail.value.slice(0, 60) : '',
             purpose: purpose.value.slice(0, 200),
             message: message.value.slice(0, 1000)
           })
@@ -349,6 +365,8 @@
       message.value = '';
       purpose.value = '';
       relation.selectedIndex = 0;
+      relationDetail.value = '';
+      otherRelationField.classList.remove('show');
       message.dispatchEvent(new Event('input'));
       chooseMode('general');
       document.querySelector('#hold').textContent = '⏳ 지금은 보류하고 10분 뒤 다시 보기';
