@@ -60,7 +60,11 @@
     }
     .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; letter-spacing: -.04em; }
     .brand-mark { width: 18px; height: 18px; border-radius: 6px 10px 6px 10px; background: var(--accent); box-shadow: 10px 5px 0 var(--magenta); transform: rotate(-8deg); }
+    .header-actions { display: flex; align-items: center; gap: 14px; }
     .privacy { color: var(--muted); font-size: 13px; }
+    .reset-all { padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; color: #fff; background: rgba(255,255,255,.07); font-size: 13px; font-weight: 750; }
+    .reset-all:hover { border-color: rgba(255,255,255,.35); background: rgba(88,101,242,.28); }
+    .reset-all:focus-visible { outline: 3px solid rgba(53,237,126,.45); outline-offset: 2px; }
     main { padding: 72px 0 96px; }
     .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, .65fr); gap: 64px; align-items: end; margin-bottom: 52px; }
     .hero > *, .panel, .step, .fields > *, .verdict > *, .suggestion { min-width: 0; }
@@ -169,7 +173,10 @@
 <body>
   <header class="shell">
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span>보내도 돼?</div>
-    <div class="privacy">🔒 서비스 DB에 원문을 저장하지 않아요.</div>
+    <div class="header-actions">
+      <div class="privacy">🔒 서비스 DB에 원문을 저장하지 않아요.</div>
+      <button id="resetAll" class="reset-all" type="button">초기화</button>
+    </div>
   </header>
 
   <main class="shell">
@@ -337,9 +344,22 @@
       clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
     }
 
+    function resetForm({ scroll = true, notify = true } = {}) {
+      results.classList.remove('show');
+      message.value = '';
+      purpose.value = '';
+      relation.selectedIndex = 0;
+      message.dispatchEvent(new Event('input'));
+      chooseMode('general');
+      document.querySelector('#hold').textContent = '⏳ 지금은 보류하고 10분 뒤 다시 보기';
+      if (notify) showToast('처음 상태로 초기화했어요.');
+      if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     document.querySelector('#analyze').addEventListener('click', analyze);
     document.querySelector('#hold').addEventListener('click', () => showToast('좋은 선택이에요. 10분 뒤 다시 확인해 보세요.'));
-    document.querySelector('#restart').addEventListener('click', () => { results.classList.remove('show'); message.value = ''; purpose.value = ''; message.dispatchEvent(new Event('input')); chooseMode('general'); window.scrollTo({top: 0, behavior: 'smooth'}); });
+    document.querySelector('#resetAll').addEventListener('click', () => resetForm());
+    document.querySelector('#restart').addEventListener('click', () => resetForm());
   </script>
 </body>
 </html>
