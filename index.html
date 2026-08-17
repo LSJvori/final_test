@@ -219,6 +219,7 @@
         <div class="fields">
           <div><label for="relation">상대방과의 관계</label><select id="relation"><option>친구</option><option>연인 / 전 연인</option><option>교수님</option><option>선배 / 직장 상사</option><option>동료</option><option>기타</option></select></div>
           <div><label for="purpose">메시지의 목적</label><input id="purpose" placeholder="예: 약속을 거절하고 싶어요"></div>
+          <div><label for="channel">보낼 메신저</label><select id="channel"><option value="kakaotalk">카카오톡</option><option value="instagram">인스타그램 DM</option><option value="email">이메일</option><option value="sms">문자 메시지</option><option value="other">기타 메신저</option></select></div>
           <div id="otherRelationField" class="other-relation">
             <label for="relationDetail">어떤 관계인가요?</label>
             <input id="relationDetail" maxlength="60" placeholder="예: 동아리 회장, 룸메이트, 처음 연락하는 사람">
@@ -268,6 +269,7 @@
     const message = document.querySelector('#message');
     const purpose = document.querySelector('#purpose');
     const relation = document.querySelector('#relation');
+    const channel = document.querySelector('#channel');
     const relationDetail = document.querySelector('#relationDetail');
     const otherRelationField = document.querySelector('#otherRelationField');
     const results = document.querySelector('#results');
@@ -275,9 +277,9 @@
     let selectedLanguage = 'ko';
 
     const examples = {
-      formal: { mode: 'formal', relation: '교수님', purpose: '과제 제출 기한을 문의하고 싶어요', text: '교수님 저 과제 제출을 조금 늦게 해도 될까요? 요즘 너무 바빠서 못 했습니다. 확인 부탁드려요.' },
-      reject: { mode: 'reject', relation: '친구', purpose: '이번 주말 모임을 거절하고 싶어요', text: '미안한데 이번엔 좀 힘들 것 같아. 다음에 상황 되면 꼭 갈게. 혹시 시간 바뀌면 다시 알려줘.' },
-      drunk: { mode: 'drunk', relation: '연인 / 전 연인', purpose: '보고 싶다는 말을 전하고 싶어요', text: '자니? 갑자기 네 생각나서. 솔직히 아직도 내가 왜 싫었는지 모르겠어. 답장 좀 해줘.' }
+      formal: { mode: 'formal', relation: '교수님', channel: 'email', purpose: '과제 제출 기한을 문의하고 싶어요', text: '교수님 저 과제 제출을 조금 늦게 해도 될까요? 요즘 너무 바빠서 못 했습니다. 확인 부탁드려요.' },
+      reject: { mode: 'reject', relation: '친구', channel: 'kakaotalk', purpose: '이번 주말 모임을 거절하고 싶어요', text: '미안한데 이번엔 좀 힘들 것 같아. 다음에 상황 되면 꼭 갈게. 혹시 시간 바뀌면 다시 알려줘.' },
+      drunk: { mode: 'drunk', relation: '연인 / 전 연인', channel: 'instagram', purpose: '보고 싶다는 말을 전하고 싶어요', text: '자니? 갑자기 네 생각나서. 솔직히 아직도 내가 왜 싫었는지 모르겠어. 답장 좀 해줘.' }
     };
 
     function chooseMode(mode) {
@@ -308,7 +310,7 @@
     message.addEventListener('input', () => document.querySelector('#count').textContent = message.value.length);
     document.querySelectorAll('[data-example]').forEach(btn => btn.addEventListener('click', () => {
       const item = examples[btn.dataset.example];
-      chooseMode(item.mode); relation.value = item.relation; purpose.value = item.purpose; message.value = item.text;
+      chooseMode(item.mode); relation.value = item.relation; channel.value = item.channel; purpose.value = item.purpose; message.value = item.text;
       relationDetail.value = ''; otherRelationField.classList.remove('show');
       message.dispatchEvent(new Event('input')); message.focus();
     }));
@@ -364,6 +366,7 @@
             relationshipDetail: relation.value === '기타' ? relationDetail.value.slice(0, 60) : '',
             purpose: purpose.value.slice(0, 200),
             message: message.value.slice(0, 1000),
+            channel: channel.value,
             outputLanguage: selectedLanguage
           })
         });
@@ -392,6 +395,7 @@
       message.value = '';
       purpose.value = '';
       relation.selectedIndex = 0;
+      channel.value = 'kakaotalk';
       relationDetail.value = '';
       otherRelationField.classList.remove('show');
       message.dispatchEvent(new Event('input'));

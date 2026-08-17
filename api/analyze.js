@@ -1,4 +1,5 @@
 const ALLOWED_MODES = new Set(["general", "drunk", "formal", "reject"]);
+const ALLOWED_CHANNELS = new Set(["kakaotalk", "instagram", "email", "sms", "other"]);
 const ALLOWED_RELATIONSHIPS = new Set([
   "친구",
   "연인 / 전 연인",
@@ -142,6 +143,14 @@ const MODE_INSTRUCTIONS = {
 - 단호하게: 경계를 흐리지 않고 결정된 입장을 전달한다.
 - 짧게: 사과와 설명을 최소화하고 거절 의사를 분명히 한다.
   `.trim(),
+};
+
+const CHANNEL_INSTRUCTIONS = {
+  kakaotalk: `카카오톡: 모바일 채팅에 어울리도록 짧은 문단과 자연스러운 대화체를 사용한다. 이메일 제목이나 편지 형식을 넣지 않는다. 긴 내용은 읽기 쉬운 2~3개의 짧은 문단으로 나눈다.`,
+  instagram: `인스타그램 DM: 가볍고 직접적인 대화체로 작성한다. 첫 연락이라면 짧게 맥락을 밝히고, 과도하게 격식을 차리거나 긴 문단을 쓰지 않는다. 해시태그는 사용하지 않는다.`,
+  email: `이메일: 각 추천안의 text를 반드시 "제목: ..." 한 줄, 빈 줄, 호칭/인사, 본문, 마무리 인사 순서로 작성한다. 원문에 없는 이름·소속·날짜는 만들지 말고 필요한 자리에는 [이름], [소속], [날짜]처럼 대괄호 표시를 사용한다.`,
+  sms: `문자 메시지: 한 화면에서 빠르게 읽을 수 있도록 간결하게 작성한다. 이메일 제목이나 불필요한 서명을 넣지 않고, 핵심 용건과 필요한 답변을 앞쪽에 둔다.`,
+  other: `기타 메신저: 특정 플랫폼 기능을 가정하지 말고, 짧은 문단의 범용적인 채팅 메시지 형식으로 작성한다.`,
 };
 
 function jsonResponse(body, status = 200, requestId = "") {
@@ -345,6 +354,7 @@ export default {
     }
 
     const mode = ALLOWED_MODES.has(input.mode) ? input.mode : "general";
+    const channel = ALLOWED_CHANNELS.has(input.channel) ? input.channel : "kakaotalk";
     const relationship = ALLOWED_RELATIONSHIPS.has(input.relationship) ? input.relationship : "기타";
     const relationshipDetail = relationship === "기타" ? normalizeText(input.relationshipDetail, 60) : "";
     const relationshipForAnalysis = relationshipDetail ? `기타 (${relationshipDetail})` : relationship;
@@ -363,6 +373,10 @@ export default {
       "<mode_instruction>",
       MODE_INSTRUCTIONS[mode],
       "</mode_instruction>",
+      "<channel_instruction>",
+      CHANNEL_INSTRUCTIONS[channel],
+      "</channel_instruction>",
+      `전송 채널: ${channel}`,
       `상대방과의 관계: ${relationshipForAnalysis}`,
       `메시지 목적: ${purpose || "사용자가 입력하지 않음"}`,
       outputLanguage === "en"
